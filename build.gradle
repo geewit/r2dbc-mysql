@@ -1,0 +1,253 @@
+import java.nio.charset.StandardCharsets
+
+static String getRepositoryName(Project rootProject) {
+    String repositoryName
+    if (isSnapshotBuild(rootProject)) {
+        repositoryName = 'sonatype-snapshot'
+    } else {
+        repositoryName = 'sonatype-release'
+    }
+    println "repositoryName: ${repositoryName}"
+    return repositoryName
+}
+
+static String getRepositoryUrl(Project rootProject) {
+    String repositoryUrl
+    if (isSnapshotBuild(rootProject)) {
+        repositoryUrl = getSnapshotRepositoryUrl(rootProject)
+    } else {
+        repositoryUrl = getReleaseRepositoryUrl(rootProject)
+    }
+    println "repositoryUrl: ${repositoryUrl}"
+    return repositoryUrl
+}
+
+static String getReleaseRepositoryUrl(Project rootProject) {
+    String releaseRepositoryUrl
+    if (rootProject.hasProperty('REPOSITORY_RELEASE_URL')) {
+        println "rootProject.property('REPOSITORY_RELEASE_URL'): " + rootProject.property('REPOSITORY_RELEASE_URL').toString()
+        releaseRepositoryUrl = rootProject.property('REPOSITORY_RELEASE_URL').toString()
+    } else {
+        String property_default_key = 'REPOSITORY_RELEASE_URL'
+        String property_key = 'REPOSITORY_RELEASE_URL_KEY'
+        String RELEASE_REPOSITORY_URL_KEY = rootProject.hasProperty(property_key) ? rootProject.property(property_key).toString() : property_default_key
+        releaseRepositoryUrl = rootProject.hasProperty(RELEASE_REPOSITORY_URL_KEY) ? rootProject.property(RELEASE_REPOSITORY_URL_KEY).toString()
+                : 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+        println "releaseRepositoryUrl: ${releaseRepositoryUrl}"
+        rootProject.ext.set('REPOSITORY_RELEASE_URL', releaseRepositoryUrl)
+    }
+    return releaseRepositoryUrl
+}
+
+static String getSnapshotRepositoryUrl(Project rootProject) {
+    String snapshotRepositoryUrl
+    if (rootProject.hasProperty('REPOSITORY_SNAPSHOT_URL')) {
+        println "rootProject.property('REPOSITORY_SNAPSHOT_URL'): " + rootProject.property('REPOSITORY_SNAPSHOT_URL').toString()
+        snapshotRepositoryUrl = rootProject.property('REPOSITORY_SNAPSHOT_URL').toString()
+    } else {
+        String property_default_key = 'REPOSITORY_SNAPSHOT_URL'
+        String property_key = 'REPOSITORY_SNAPSHOT_URL_KEY'
+        String SNAPSHOT_REPOSITORY_URL_KEY = rootProject.hasProperty(property_key) ? rootProject.property(property_key).toString() : property_default_key
+        snapshotRepositoryUrl = rootProject.hasProperty(SNAPSHOT_REPOSITORY_URL_KEY) ? rootProject.property(SNAPSHOT_REPOSITORY_URL_KEY).toString()
+                : 'https://oss.sonatype.org/content/repositories/snapshots/'
+        println "snapshotRepositoryUrl: ${snapshotRepositoryUrl}"
+        rootProject.ext.set('REPOSITORY_SNAPSHOT_URL', snapshotRepositoryUrl)
+    }
+    return snapshotRepositoryUrl
+}
+
+static boolean isSnapshotBuild(Project rootProject) {
+    return rootProject.version.toString().toUpperCase().endsWith('SNAPSHOT')
+}
+
+// 以下两个方法用于从项目属性或环境中获取 Sonatype 仓库的用户名和密码
+static String getRepositoryUsername(Project rootProject) {
+    if (rootProject.hasProperty('REPOSITORY_USERNAME')) {
+        println "rootProject.property('REPOSITORY_USERNAME'): " + rootProject.property('REPOSITORY_USERNAME').toString()
+        return rootProject.property('REPOSITORY_USERNAME').toString()
+    }
+    String property_default_key = 'REPOSITORY_USERNAME'
+    String property_key = 'REPOSITORY_USERNAME_KEY'
+    String SONATYPE_USERNAME_KEY = rootProject.hasProperty(property_key) ? rootProject.property(property_key).toString() : property_default_key
+    String username = rootProject.hasProperty(SONATYPE_USERNAME_KEY) ? rootProject.property(SONATYPE_USERNAME_KEY).toString() : ""
+    println "username: $username"
+    rootProject.ext.set('REPOSITORY_USERNAME', username)
+    return username
+}
+
+static String getRepositoryPassword(Project rootProject) {
+    if (rootProject.hasProperty('REPOSITORY_PASSWORD')) {
+        println "rootProject.property('REPOSITORY_PASSWORD'): " + rootProject.property('REPOSITORY_PASSWORD').toString()
+        return rootProject.property('REPOSITORY_PASSWORD').toString()
+    }
+    String property_default_key = 'REPOSITORY_PASSWORD'
+    String property_key = 'REPOSITORY_PASSWORD_KEY'
+    String SONATYPE_PASSWORD_KEY = rootProject.hasProperty(property_key) ? rootProject.property(property_key).toString() : property_default_key
+    String password = rootProject.hasProperty(SONATYPE_PASSWORD_KEY) ? rootProject.property(SONATYPE_PASSWORD_KEY).toString() : ""
+    println "password: $password"
+    rootProject.ext.set('REPOSITORY_PASSWORD', password)
+    return password
+}
+
+plugins {
+    id 'java-library'
+    id 'signing'
+    id 'maven-publish'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    configureEach { config ->
+        config.exclude group: 'com.google.protobuf'
+        config.exclude group: 'org.springframework.boot', module: 'spring-boot-dependencies'
+        config.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
+        config.exclude group: 'org.apache.logging.log4j', module: 'log4j-jul'
+        config.exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+        config.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        config.exclude group: 'org.yaml'
+        config.exclude group: 'io.netty', module: 'netty-resolver-dns-classes-macos'
+        config.exclude group: 'io.netty', module: 'netty-resolver-dns-native-macos'
+        config.exclude group: 'io.netty', module: 'netty-transport-native-epoll'
+//        config.exclude group: 'io.netty', module: 'netty-transport-native-unix-common'
+    }
+}
+
+dependencies {
+    // 直接引用 settings.gradle 中 version catalog 定义的依赖
+    implementation libs.bundles.jackson.bundle
+    implementation libs.bundles.reactor.bundle
+    implementation libs.bundles.netty.bundle
+    implementation libs.r2dbc.spi
+    compileOnly libs.jsr305
+    implementation libs.zstd.jni
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(property('io.geewit.gradle.java_version').toString()))
+        vendor.set(JvmVendorSpec.ORACLE)
+        implementation.set(JvmImplementation.VENDOR_SPECIFIC)
+    }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
+        }
+    }
+}
+
+tasks.withType(JavaCompile).tap {
+    configureEach {
+        sourceCompatibility = project.findProperty('io.geewit.gradle.java_version').toString()
+        targetCompatibility = project.findProperty('io.geewit.gradle.java_version').toString()
+        options.compilerArgs += ['-Xlint:all', '-Xlint:-options', '-Xlint:-processing', '-Xlint:-serial']
+        options.encoding = StandardCharsets.UTF_8.name()
+    }
+}
+tasks.withType(Jar).tap {
+    configureEach {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+}
+
+tasks.withType(Javadoc).configureEach {
+    // 针对 Java9+ 版本，关闭所有 doclint 检查（-quiet 是为了减少输出）
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
+
+tasks.withType(Copy).tap {
+    configureEach {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+}
+
+publishing {
+
+    publications {
+        create("mavenJava", MavenPublication) {
+            from(rootProject.components.java as SoftwareComponent)
+            pom {
+                name = POM_ARTIFACT_ID
+                if (rootProject.hasProperty('POM_DESCRIPTION')) {
+                    description = POM_DESCRIPTION
+                }
+                if (rootProject.hasProperty('POM_SCM_URL')) {
+                    url = POM_SCM_URL
+                }
+                licenses {
+                    license {
+                        if (rootProject.hasProperty('POM_LICENCE_NAME')) {
+                            name = POM_LICENCE_NAME
+                        }
+                        if (rootProject.hasProperty('POM_LICENCE_URL')) {
+                            url = POM_LICENCE_URL
+                        }
+                    }
+                }
+                developers {
+                    developer {
+                        if (rootProject.hasProperty('POM_LICENCE_URL')) {
+                            id = POM_DEVELOPER_ID
+                        }
+                        if (rootProject.hasProperty('POM_DEVELOPER_NAME')) {
+                            name = POM_DEVELOPER_NAME
+                        }
+                        if (rootProject.hasProperty('POM_DEVELOPER_EMAIL')) {
+                            email = POM_DEVELOPER_EMAIL
+                        }
+                    }
+                }
+                scm {
+                    if (rootProject.hasProperty('POM_SCM_URL')) {
+                        url = POM_SCM_URL
+                    }
+                    if (rootProject.hasProperty('POM_SCM_CONNECTION')) {
+                        connection = POM_SCM_CONNECTION
+                    }
+                    if (rootProject.hasProperty('POM_SCM_DEV_CONNECTION')) {
+                        developerConnection = POM_SCM_DEV_CONNECTION
+                    }
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = getRepositoryName(rootProject)
+            url = uri(getRepositoryUrl(rootProject))
+            credentials {
+                username = getRepositoryUsername(rootProject)
+                password = getRepositoryPassword(rootProject)
+            }
+        }
+    }
+
+    signing {
+        sign publishing.publications.mavenJava
+    }
+}

@@ -1,0 +1,75 @@
+pluginManagement {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        // 插件版本从 gradle.properties 获取
+    }
+}
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            // 定义版本号（取自 gradle.properties）
+            version('jackson', getProperty('jackson.version'))
+            version('r2dbc-spi', getProperty('r2dbc-spi.version'))
+            version('reactor-core', getProperty('reactor.core.version'))
+            version('reactor-netty', getProperty('reactor.netty.version'))
+            version('netty', getProperty('netty.version'))
+            version('jsr305', getProperty('jsr305.version'))
+            version('zstd-jni', getProperty('zstd-jni.version'))
+
+            library("jackson.core", "com.fasterxml.jackson.core", "jackson-core").versionRef("jackson")
+            library("jackson.annotations", "com.fasterxml.jackson.core", "jackson-annotations").versionRef("jackson")
+            library("netty.buffer", "io.netty", "netty-buffer").versionRef("netty")
+            library("netty.codec", "io.netty", "netty-codec").versionRef("netty")
+            library("netty.codec.dns", "io.netty", "netty-codec-dns").versionRef("netty")
+            library("netty.codec.http", "io.netty", "netty-codec-http").versionRef("netty")
+            library("netty.codec.socks", "io.netty", "netty-codec-socks").versionRef("netty")
+            library("netty.common", "io.netty", "netty-common").versionRef("netty")
+            library("netty.handler", "io.netty", "netty-handler").versionRef("netty")
+            library("netty.handler.proxy", "io.netty", "netty-handler-proxy").versionRef("netty")
+            library("netty.resolver", "io.netty", "netty-resolver").versionRef("netty")
+            library("netty.resolver-dns", "io.netty", "netty-resolver-dns").versionRef("netty")
+            library("netty.transport", "io.netty", "netty-transport").versionRef("netty")
+            library("netty.transport-classes-epoll", "io.netty", "netty-transport-classes-epoll").versionRef("netty")
+            library("netty.transport-classes-kqueue", "io.netty", "netty-transport-classes-kqueue").versionRef("netty")
+            library("r2dbc.spi", "io.r2dbc", "r2dbc-spi").versionRef("r2dbc-spi")
+            library("reactor.core", "io.projectreactor", "reactor-core").versionRef("reactor-core")
+            library("reactor.netty.core", "io.projectreactor.netty", "reactor-netty-core").versionRef("reactor-netty")
+            // 对于 netty 原生依赖，可直接在版本坐引中指定 classifier（格式：group:artifact:version:classifier）
+            library("jsr305", "com.google.code.findbugs", "jsr305").versionRef("jsr305")
+            library("zstd.jni", "com.github.luben", "zstd-jni").versionRef("zstd-jni")
+
+            // 定义 bundle（例如将 reactor 相关依赖归组）
+            bundle("jackson.bundle", [
+                    'jackson.core',
+                    'jackson.annotations'
+            ])
+            bundle("reactor.bundle", [
+                    "reactor.core",
+                    "reactor.netty.core"
+            ])
+
+            bundle("netty.bundle", [
+                    'netty.buffer',
+                    'netty.codec',
+                    'netty.codec.dns',
+                    'netty.codec.http',
+                    'netty.codec.socks',
+                    'netty.common',
+                    'netty.handler',
+                    'netty.handler.proxy',
+                    'netty.resolver',
+                    'netty.resolver-dns',
+                    'netty.transport',
+                    'netty.transport-classes-epoll',
+                    'netty.transport-classes-kqueue'
+            ])
+        }
+    }
+}
+
+rootProject.name = 'r2dbc-mysql'
