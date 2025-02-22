@@ -21,7 +21,6 @@ import io.geewit.persistence.r2dbc.mysql.cache.Caches;
 import io.geewit.persistence.r2dbc.mysql.cache.QueryCache;
 import io.geewit.persistence.r2dbc.mysql.client.Client;
 import io.geewit.persistence.r2dbc.mysql.internal.util.StringUtils;
-import io.netty.channel.unix.DomainSocketAddress;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryMetadata;
 import org.reactivestreams.Publisher;
@@ -72,14 +71,14 @@ public final class MySqlConnectionFactory implements ConnectionFactory {
             MySqlSslConfiguration ssl;
             SocketAddress address;
 
+            // 根据配置判断是否采用 SSL（或者开启 TCP 模式），同时在 Windows 下只能使用 TCP 连接
             if (configuration.isHost()) {
                 ssl = configuration.getSsl();
-                address = InetSocketAddress.createUnresolved(configuration.getDomain(),
-                        configuration.getPort());
             } else {
                 ssl = MySqlSslConfiguration.disabled();
-                address = new DomainSocketAddress(configuration.getDomain());
             }
+            // 统一采用 InetSocketAddress 来创建地址，兼容 Windows 环境
+            address = InetSocketAddress.createUnresolved(configuration.getDomain(), configuration.getPort());
 
             String user = configuration.getUser();
             CharSequence password = configuration.getPassword();
@@ -107,20 +106,7 @@ public final class MySqlConnectionFactory implements ConnectionFactory {
 
     /**
      * Gets an initialized {@link MySqlConnection} from authentication credential and configurations.
-     * <p>
-     * It contains following steps:
-     * <ol><li>Create connection context</li>
-     * <li>Connect to MySQL server with TCP or Unix Domain Socket</li>
-     * <li>Handshake/login and init handshake states</li>
-     * <li>Init session states</li></ol>
-     *
-     * @param configuration the connection configuration.
-     * @param ssl           the SSL configuration.
-     * @param queryCache    lazy-init query cache, it is shared among all connections from the same factory.
-     * @param address       TCP or Unix Domain Socket address.
-     * @param user          the user of the authentication.
-     * @param password      the password of the authentication.
-     * @return a {@link MySqlConnection}.
+     * (后续代码保持不变)
      */
     private static Mono<MySqlConnection> getMySqlConnection(
             final MySqlConnectionConfiguration configuration,
@@ -188,16 +174,13 @@ public final class MySqlConnectionFactory implements ConnectionFactory {
         } else if ("SERVER".equalsIgnoreCase(timeZone)) {
             return null;
         }
-
         return StringUtils.parseZoneId(timeZone);
     }
 
     private static final class LazyQueryCache implements Supplier<QueryCache> {
 
         private final int capacity;
-
         private final ReentrantLock lock = new ReentrantLock();
-
         private volatile QueryCache cache;
 
         private LazyQueryCache(int capacity) {
