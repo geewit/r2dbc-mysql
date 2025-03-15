@@ -149,8 +149,10 @@ public interface Client {
             .metrics(metrics);
 
         if (connectTimeout != null) {
-            tcpClient = tcpClient.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
-                Math.toIntExact(connectTimeout.toMillis()));
+            tcpClient = tcpClient.option(
+                    ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                Math.toIntExact(connectTimeout.toMillis())
+            );
         }
 
         if (address instanceof InetSocketAddress) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 geewit.io projects
+ * Copyright 2023 asyncer.io projects
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package io.geewit.persistence.r2dbc.mysql;
 
 import io.geewit.persistence.r2dbc.mysql.constant.CompressionAlgorithm;
-import io.geewit.persistence.r2dbc.mysql.constant.TlsVersions;
 import io.geewit.persistence.r2dbc.mysql.constant.SslMode;
 import io.geewit.persistence.r2dbc.mysql.constant.ZeroDateOption;
 import io.geewit.persistence.r2dbc.mysql.extension.Extension;
@@ -35,19 +34,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.ServiceLoader;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static io.geewit.persistence.r2dbc.mysql.internal.util.AssertUtils.require;
-import static io.geewit.persistence.r2dbc.mysql.internal.util.AssertUtils.requireNonEmpty;
-import static io.geewit.persistence.r2dbc.mysql.internal.util.AssertUtils.requireNonNull;
+import static io.geewit.persistence.r2dbc.mysql.internal.util.AssertUtils.*;
 import static io.geewit.persistence.r2dbc.mysql.internal.util.InternalArrays.EMPTY_STRINGS;
 
 /**
@@ -126,38 +117,40 @@ public final class MySqlConnectionConfiguration {
 
     private final boolean metrics;
 
+    private final boolean tinyInt1isBit;
+
     private MySqlConnectionConfiguration(
-        boolean isHost,
-        String domain,
-        int port,
-        MySqlSslConfiguration ssl,
-        boolean tcpKeepAlive,
-        boolean tcpNoDelay,
-        Duration connectTimeout,
-        ZeroDateOption zeroDateOption,
-        boolean preserveInstants,
-        String connectionTimeZone,
-        boolean forceConnectionTimeZoneToSession,
-        String user,
-        CharSequence password,
-        String database,
-        boolean createDatabaseIfNotExist,
-        Predicate<String> preferPrepareStatement,
-        List<String> sessionVariables,
-        Duration lockWaitTimeout,
-        Duration statementTimeout,
-        Path loadLocalInfilePath,
-        int localInfileBufferSize,
-        int queryCacheSize,
-        int prepareCacheSize,
-        Set<CompressionAlgorithm> compressionAlgorithms,
-        int zstdCompressionLevel,
-        LoopResources loopResources,
-        Extensions extensions,
-        Publisher<String> passwordPublisher,
-        AddressResolverGroup<?> resolver,
-        boolean metrics
-    ) {
+            boolean isHost,
+            String domain,
+            int port,
+            MySqlSslConfiguration ssl,
+            boolean tcpKeepAlive,
+            boolean tcpNoDelay,
+            Duration connectTimeout,
+            ZeroDateOption zeroDateOption,
+            boolean preserveInstants,
+            String connectionTimeZone,
+            boolean forceConnectionTimeZoneToSession,
+            String user,
+            CharSequence password,
+            String database,
+            boolean createDatabaseIfNotExist,
+            Predicate<String> preferPrepareStatement,
+            List<String> sessionVariables,
+            Duration lockWaitTimeout,
+            Duration statementTimeout,
+            Path loadLocalInfilePath,
+            int localInfileBufferSize,
+            int queryCacheSize,
+            int prepareCacheSize,
+            Set<CompressionAlgorithm> compressionAlgorithms,
+            int zstdCompressionLevel,
+            LoopResources loopResources,
+            Extensions extensions,
+            Publisher<String> passwordPublisher,
+            AddressResolverGroup<?> resolver,
+            boolean metrics,
+            boolean tinyInt1isBit) {
         this.isHost = isHost;
         this.domain = domain;
         this.port = port;
@@ -188,6 +181,7 @@ public final class MySqlConnectionConfiguration {
         this.passwordPublisher = passwordPublisher;
         this.resolver = resolver;
         this.metrics = metrics;
+        this.tinyInt1isBit = tinyInt1isBit;
     }
 
     /**
@@ -210,6 +204,7 @@ public final class MySqlConnectionConfiguration {
     int getPort() {
         return port;
     }
+
 
     Duration getConnectTimeout() {
         return connectTimeout;
@@ -247,6 +242,7 @@ public final class MySqlConnectionConfiguration {
         return user;
     }
 
+
     CharSequence getPassword() {
         return password;
     }
@@ -259,6 +255,7 @@ public final class MySqlConnectionConfiguration {
         return createDatabaseIfNotExist;
     }
 
+
     Predicate<String> getPreferPrepareStatement() {
         return preferPrepareStatement;
     }
@@ -267,13 +264,16 @@ public final class MySqlConnectionConfiguration {
         return sessionVariables;
     }
 
+
     Duration getLockWaitTimeout() {
         return lockWaitTimeout;
     }
 
+
     Duration getStatementTimeout() {
         return statementTimeout;
     }
+
 
     Path getLoadLocalInfilePath() {
         return loadLocalInfilePath;
@@ -307,9 +307,11 @@ public final class MySqlConnectionConfiguration {
         return extensions;
     }
 
+
     Publisher<String> getPasswordPublisher() {
         return passwordPublisher;
     }
+
 
     AddressResolverGroup<?> getResolver() {
         return resolver;
@@ -319,13 +321,20 @@ public final class MySqlConnectionConfiguration {
         return metrics;
     }
 
+    boolean isTinyInt1isBit() {
+        return tinyInt1isBit;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o instanceof MySqlConnectionConfiguration that) {
-            return isHost == that.isHost &&
+        if (!(o instanceof MySqlConnectionConfiguration)) {
+            return false;
+        }
+        MySqlConnectionConfiguration that = (MySqlConnectionConfiguration) o;
+        return isHost == that.isHost &&
                 domain.equals(that.domain) &&
                 port == that.port &&
                 ssl.equals(that.ssl) &&
@@ -354,31 +363,30 @@ public final class MySqlConnectionConfiguration {
                 extensions.equals(that.extensions) &&
                 Objects.equals(passwordPublisher, that.passwordPublisher) &&
                 Objects.equals(resolver, that.resolver) &&
-                metrics == that.metrics;
-        }
-        return false;
+                metrics == that.metrics &&
+                tinyInt1isBit == that.tinyInt1isBit;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(isHost, domain, port, ssl, tcpKeepAlive, tcpNoDelay, connectTimeout,
-            preserveInstants, connectionTimeZone, forceConnectionTimeZoneToSession,
-            zeroDateOption, user, password, database, createDatabaseIfNotExist,
-            preferPrepareStatement,
-            sessionVariables,
-            lockWaitTimeout,
-            statementTimeout,
-            loadLocalInfilePath, localInfileBufferSize,
-            queryCacheSize, prepareCacheSize,
-            compressionAlgorithms, zstdCompressionLevel,
-            loopResources, extensions, passwordPublisher, resolver, metrics);
+                preserveInstants, connectionTimeZone, forceConnectionTimeZoneToSession,
+                zeroDateOption, user, password, database, createDatabaseIfNotExist,
+                preferPrepareStatement,
+                sessionVariables,
+                lockWaitTimeout,
+                statementTimeout,
+                loadLocalInfilePath, localInfileBufferSize,
+                queryCacheSize, prepareCacheSize,
+                compressionAlgorithms, zstdCompressionLevel,
+                loopResources, extensions, passwordPublisher, resolver, metrics, tinyInt1isBit);
     }
 
     @Override
     public String toString() {
         return "MySqlConnectionConfiguration{" +
                 (isHost ? "host='" + domain + "', port=" + port + ", ssl=" + ssl +
-                          ", tcpNoDelay=" + tcpNoDelay + ", tcpKeepAlive=" + tcpKeepAlive :
+                        ", tcpNoDelay=" + tcpNoDelay + ", tcpKeepAlive=" + tcpKeepAlive :
                         "unixSocket='" + domain + "'") +
                 buildCommonToStringPart() +
                 '}';
@@ -406,13 +414,15 @@ public final class MySqlConnectionConfiguration {
                 ", extensions=" + extensions +
                 ", passwordPublisher=" + passwordPublisher +
                 ", resolver=" + resolver +
-                ", metrics=" + metrics;
+                ", metrics=" + metrics +
+                ", tinyInt1isBit=" + tinyInt1isBit;
     }
 
     /**
      * A builder for {@link MySqlConnectionConfiguration} creation.
      */
     public static final class Builder {
+
 
         private String database;
 
@@ -422,9 +432,11 @@ public final class MySqlConnectionConfiguration {
 
         private String domain;
 
+
         private CharSequence password;
 
         private int port = DEFAULT_PORT;
+
 
         private Duration connectTimeout;
 
@@ -438,19 +450,26 @@ public final class MySqlConnectionConfiguration {
 
         private boolean forceConnectionTimeZoneToSession;
 
+
         private SslMode sslMode;
 
         private String[] tlsVersion = EMPTY_STRINGS;
 
+
         private HostnameVerifier sslHostnameVerifier;
+
 
         private String sslCa;
 
+
         private String sslKey;
+
 
         private CharSequence sslKeyPassword;
 
+
         private String sslCert;
+
 
         private Function<SslContextBuilder, SslContextBuilder> sslContextBuilderCustomizer;
 
@@ -458,13 +477,17 @@ public final class MySqlConnectionConfiguration {
 
         private boolean tcpNoDelay;
 
+
         private Predicate<String> preferPrepareStatement;
 
+
         private Duration lockWaitTimeout;
+
 
         private Duration statementTimeout;
 
         private List<String> sessionVariables = Collections.emptyList();
+
 
         private Path loadLocalInfilePath;
 
@@ -475,9 +498,10 @@ public final class MySqlConnectionConfiguration {
         private int prepareCacheSize = 256;
 
         private Set<CompressionAlgorithm> compressionAlgorithms =
-            Collections.singleton(CompressionAlgorithm.UNCOMPRESSED);
+                Collections.singleton(CompressionAlgorithm.UNCOMPRESSED);
 
         private int zstdCompressionLevel = 3;
+
 
         private LoopResources loopResources;
 
@@ -491,6 +515,8 @@ public final class MySqlConnectionConfiguration {
 
         private boolean metrics;
 
+        private boolean tinyInt1isBit = true;
+
         /**
          * Builds an immutable {@link MySqlConnectionConfiguration} with current options.
          *
@@ -502,7 +528,7 @@ public final class MySqlConnectionConfiguration {
             if (isHost) {
                 requireNonNull(domain, "host must not be null when using TCP socket");
                 require((sslCert == null && sslKey == null) || (sslCert != null && sslKey != null),
-                    "sslCert and sslKey must be both null or both non-null");
+                        "sslCert and sslKey must be both null or both non-null");
             } else {
                 requireNonNull(domain, "unixSocket must not be null when using unix domain socket");
                 require(!sslMode.startSsl(), "sslMode must be disabled when using unix domain socket");
@@ -511,25 +537,25 @@ public final class MySqlConnectionConfiguration {
             int prepareCacheSize = preferPrepareStatement == null ? 0 : this.prepareCacheSize;
 
             MySqlSslConfiguration ssl = MySqlSslConfiguration.create(sslMode, tlsVersion, sslHostnameVerifier,
-                sslCa, sslKey, sslKeyPassword, sslCert, sslContextBuilderCustomizer);
+                    sslCa, sslKey, sslKeyPassword, sslCert, sslContextBuilderCustomizer);
             return new MySqlConnectionConfiguration(isHost, domain, port, ssl, tcpKeepAlive, tcpNoDelay,
-                connectTimeout, zeroDateOption,
-                preserveInstants,
-                connectionTimeZone,
-                forceConnectionTimeZoneToSession,
-                user, password, database,
-                createDatabaseIfNotExist, preferPrepareStatement,
-                sessionVariables,
-                lockWaitTimeout,
-                statementTimeout,
-                loadLocalInfilePath,
-                localInfileBufferSize, queryCacheSize, prepareCacheSize,
-                compressionAlgorithms, zstdCompressionLevel, loopResources,
-                Extensions.from(extensions, autodetectExtensions), passwordPublisher, resolver, metrics);
+                    connectTimeout, zeroDateOption,
+                    preserveInstants,
+                    connectionTimeZone,
+                    forceConnectionTimeZoneToSession,
+                    user, password, database,
+                    createDatabaseIfNotExist, preferPrepareStatement,
+                    sessionVariables,
+                    lockWaitTimeout,
+                    statementTimeout,
+                    loadLocalInfilePath,
+                    localInfileBufferSize, queryCacheSize, prepareCacheSize,
+                    compressionAlgorithms, zstdCompressionLevel, loopResources,
+                    Extensions.from(extensions, autodetectExtensions), passwordPublisher, resolver, metrics, tinyInt1isBit);
         }
 
         /**
-         * Configures the database.  Default no database.
+         * Configures the database. Default no database.
          *
          * @param database the database, or {@code null} if no database want to be login.
          * @return this {@link Builder}.
@@ -735,7 +761,7 @@ public final class MySqlConnectionConfiguration {
         }
 
         /**
-         * Configures TLS versions, see {@link TlsVersions TlsVersions}.
+         * Configures TLS versions, see {@link io.geewit.persistence.r2dbc.mysql.constant.TlsVersions TlsVersions}.
          *
          * @param tlsVersion TLS versions.
          * @return this {@link Builder}.
@@ -771,7 +797,7 @@ public final class MySqlConnectionConfiguration {
          */
         public Builder sslHostnameVerifier(HostnameVerifier sslHostnameVerifier) {
             this.sslHostnameVerifier = requireNonNull(sslHostnameVerifier,
-                "sslHostnameVerifier must not be null");
+                    "sslHostnameVerifier must not be null");
             return this;
         }
 
@@ -846,7 +872,7 @@ public final class MySqlConnectionConfiguration {
          * @since 0.8.1
          */
         public Builder sslContextBuilderCustomizer(
-            Function<SslContextBuilder, SslContextBuilder> customizer) {
+                Function<SslContextBuilder, SslContextBuilder> customizer) {
             requireNonNull(customizer, "sslContextBuilderCustomizer must not be null");
 
             this.sslContextBuilderCustomizer = customizer;
@@ -903,7 +929,7 @@ public final class MySqlConnectionConfiguration {
          * @since 0.8.1
          */
         public Builder useServerPrepareStatement() {
-            return useServerPrepareStatement((sql) -> false);
+            return useServerPrepareStatement(_ -> false);
         }
 
         /**
@@ -1181,9 +1207,25 @@ public final class MySqlConnectionConfiguration {
          */
         public Builder metrics(boolean enabled) {
             require(!enabled || Metrics.isMicrometerAvailable(),
-            "dependency `io.micrometer:micrometer-core` must be added to classpath if metrics enabled"
+                    "dependency `io.micrometer:micrometer-core` must be added to classpath if metrics enabled"
             );
             this.metrics = enabled;
+            return this;
+        }
+
+        /**
+         * Option to whether the driver should interpret MySQL's TINYINT(1) as a BIT type.
+         * When enabled, TINYINT(1) columns will be treated as BIT. Defaults to {@code true}.
+         * <p>
+         * Note: Only signed TINYINT(1) columns can be treated as BIT or Boolean.
+         * Ref: https://bugs.mysql.com/bug.php?id=100309
+         *
+         * @param tinyInt1isBit {@code true} to treat TINYINT(1) as BIT
+         * @return this {@link Builder}
+         * @since 1.4.0
+         */
+        public Builder tinyInt1isBit(boolean tinyInt1isBit) {
+            this.tinyInt1isBit = tinyInt1isBit;
             return this;
         }
 
@@ -1197,6 +1239,7 @@ public final class MySqlConnectionConfiguration {
             return sslMode;
         }
 
-        private Builder() { }
+        private Builder() {
+        }
     }
 }

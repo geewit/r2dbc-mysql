@@ -129,6 +129,14 @@ final class ReactorNettyClient implements Client {
                         logger.debug("Request: {}", message);
                     }
 
+                    if (message == ExitMessage.INSTANCE) {
+                        if (STATE_UPDATER.compareAndSet(this, ST_CONNECTED, ST_CLOSING)) {
+                            logger.debug("Exit message sent");
+                        } else {
+                            logger.debug("Exit message sent (duplicated / connection already closed)");
+                        }
+                    }
+
                     if (message.isSequenceReset()) {
                         resetSequence(connection);
                     }

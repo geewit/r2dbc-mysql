@@ -16,8 +16,6 @@
 
 package io.geewit.persistence.r2dbc.mysql.codec;
 
-import java.math.BigInteger;
-
 import io.geewit.persistence.r2dbc.mysql.MySqlParameter;
 import io.geewit.persistence.r2dbc.mysql.ParameterWriter;
 import io.geewit.persistence.r2dbc.mysql.api.MySqlReadableMetadata;
@@ -27,10 +25,14 @@ import io.netty.buffer.ByteBufAllocator;
 import io.r2dbc.spi.R2dbcNonTransientResourceException;
 import reactor.core.publisher.Mono;
 
+import java.math.BigInteger;
+
 /**
  * Codec for BIT, can convert to {@code boolean} if precision is 1.
  */
 final class BooleanCodec extends AbstractPrimitiveCodec<Boolean> {
+
+    private static final Integer INTEGER_ONE = Integer.valueOf(1);
 
     static final BooleanCodec INSTANCE = new BooleanCodec();
 
@@ -40,7 +42,7 @@ final class BooleanCodec extends AbstractPrimitiveCodec<Boolean> {
 
     @Override
     public Boolean decode(ByteBuf value, MySqlReadableMetadata metadata, Class<?> target, boolean binary,
-        CodecContext context) {
+                          CodecContext context) {
         MySqlType dataType = metadata.getType();
 
         if (dataType == MySqlType.VARCHAR) {
@@ -51,13 +53,13 @@ final class BooleanCodec extends AbstractPrimitiveCodec<Boolean> {
             String s = value.toString(metadata.getCharCollation(context).getCharset());
 
             if (s.equalsIgnoreCase("Y") || s.equalsIgnoreCase("yes") ||
-            s.equalsIgnoreCase("T") || s.equalsIgnoreCase("true")) {
+                    s.equalsIgnoreCase("T") || s.equalsIgnoreCase("true")) {
                 return createFromLong(1);
             } else if (s.equalsIgnoreCase("N") || s.equalsIgnoreCase("no") ||
-            s.equalsIgnoreCase("F") || s.equalsIgnoreCase("false")) {
+                    s.equalsIgnoreCase("F") || s.equalsIgnoreCase("false")) {
                 return createFromLong(0);
             } else if (s.matches("-?\\d*\\.\\d*") || s.matches("-?\\d*\\.\\d+[eE]-?\\d+")
-            || s.matches("-?\\d*[eE]-?\\d+")) {
+                    || s.matches("-?\\d*[eE]-?\\d+")) {
                 return createFromDouble(Double.parseDouble(s));
             } else if (s.matches("-?\\d+")) {
                 if (!CodecUtils.isGreaterThanLongMax(s)) {
@@ -66,7 +68,7 @@ final class BooleanCodec extends AbstractPrimitiveCodec<Boolean> {
                 return createFromBigInteger(new BigInteger(s));
             }
             throw new R2dbcNonTransientResourceException("The value '" + s + "' of type '" + dataType +
-            "' cannot be encoded into a Boolean.", "22018");
+                    "' cannot be encoded into a Boolean.", "22018");
         }
 
         return binary || dataType == MySqlType.BIT ? value.readBoolean() : value.readByte() != '0';
@@ -86,7 +88,7 @@ final class BooleanCodec extends AbstractPrimitiveCodec<Boolean> {
     public boolean doCanDecode(MySqlReadableMetadata metadata) {
         MySqlType type = metadata.getType();
         return ((type == MySqlType.BIT || type == MySqlType.TINYINT) &&
-        Integer.valueOf(1).equals(metadata.getPrecision())) || type == MySqlType.VARCHAR;
+                INTEGER_ONE.equals(metadata.getPrecision())) || type == MySqlType.VARCHAR;
     }
 
     public Boolean createFromLong(long l) {
